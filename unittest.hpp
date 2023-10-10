@@ -6,9 +6,11 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include <optional>
 #include <functional>
 #include <stdexcept>
+#include <optional>
+#include <chrono>
+#include <cmath>
 
 namespace unittest {
   class AssertionError {
@@ -34,27 +36,148 @@ namespace unittest {
     }
   }
   
-  struct Test {
-    Test(const char* name, const std::function<void()>& body) {
+  class Test {
+  private:
+    std::string _name;
+    bool _is_timed = false;
+    size_t _repeat = 1;
+  public:
+    Test(const char* name): _name(name) {}
+    
+    Test time(bool is_timed = true) && {
+      _is_timed = is_timed;
+      return std::move(*this);
+    }
+    
+    Test repeat(size_t repeat) && {
+      _repeat = repeat;
+      return std::move(*this);
+    }
+  
+  private:
+    using Duration = std::chrono::high_resolution_clock::duration;
+  
+    struct Report {
       std::optional<AssertionError> error;
-      try {
-        body();
-      } catch (const AssertionError& err) {
-        error = err;
+      Duration duration;
+      
+      Report() {}
+      Report(Duration _duration): duration(_duration) {}
+      Report(const AssertionError& _error): error(_error) {}
+      
+      bool is_error() const { return error.has_value(); }
+      bool is_success() const { return !is_error(); }
+    };
+    
+    template <class T>
+    void write_duration(const T& duration,
+                        std::ostream& stream) {
+      #define in(unit) std::chrono::duration_cast<std::chrono::unit>(duration).count()
+      
+      if (in(seconds) > 0) {
+        stream << in(seconds) << "s " << (in(milliseconds) % 1000) << "ms";
+      } else if (in(milliseconds) > 0) {
+        stream << in(milliseconds) << "ms";
+      } else {
+        stream << in(nanoseconds) << "ns";
       }
       
-      if (error.has_value()) {
+      #undef in
+    }
+    
+    void write_duration_stats(const std::vector<Report>& reports, std::ostream& stream) {
+      if (reports.size() == 1) {
+        write_duration(reports[0].duration, stream);
+      } else {
+        bool is_first = true;
+        size_t count = 0;
+        Duration min, max, mean;
+        for (const Report& report : reports) {
+          if (report.is_success()) {
+            if (is_first) {
+              min = report.duration;
+              max = report.duration;
+              mean = report.duration;
+              is_first = false;
+            } else {
+              if (report.duration < min) { min = report.duration; }
+              if (report.duration > max) { max = report.duration; }
+              mean += report.duration;
+            }
+            count++;
+          }
+        }
+        
+        mean /= count;
+        
+        double stddev = 0;
+        for (const Report& report : reports) {
+          if (report.is_success()) {
+            double delta = std::chrono::duration<double>(report.duration - mean).count();
+            stddev += delta * delta;
+          }
+        }
+        stddev /= count - 1;
+        stddev = std::sqrt(stddev);
+        
+        stream << "mean ";
+        write_duration(mean, stream);
+        stream << ", stddev ";
+        write_duration(std::chrono::duration<double>(stddev), stream);
+        stream << ", min ";
+        write_duration(min, stream);
+        stream << ", max ";
+        write_duration(max, stream);
+      }
+    }
+    
+  public:
+    void run(const std::function<void()>& body) && {
+      size_t success_count = 0;
+      std::vector<Report> reports;
+      reports.reserve(_repeat);
+      for (size_t iter = 0; iter < _repeat; iter++) {
+        try {
+          if (_is_timed) {
+            std::chrono::high_resolution_clock clock;
+            auto start = clock.now();
+            body();
+            auto stop = clock.now();
+            reports.emplace_back(stop - start);
+          } else {
+            body();
+            reports.emplace_back();
+          }
+          success_count++;
+        } catch (const AssertionError& err) {
+          reports.emplace_back(err);
+        }
+      }
+      
+      bool has_errors = success_count < reports.size();
+      if (has_errors) {
         std::cout << "\e[1;31m[x]\e[0m ";
       } else {
         std::cout << "\e[32m[✓]\e[0m ";
       }
-      std::cout << name << std::endl;
+      std::cout << _name;
+      if (_is_timed && success_count > 0) {
+        std::cout << " (";
+        write_duration_stats(reports, std::cout);
+        std::cout << ")";
+      }
+      std::cout << std::endl;
       
-      if (error.has_value()) {
-        std::cout << std::endl;
-        std::cout << "Assertion failed: " << error.value().expression() << std::endl;
-        std::cout << error.value().file() << " (" << error.value().line() << ")" << std::endl;
-        std::cout << std::endl;
+      if (has_errors) {
+        for (const Report& report : reports) {
+          if (report.is_error()) {
+            const AssertionError& error = report.error.value();
+            std::cout << std::endl;
+            std::cout << "Assertion failed: " << error.expression() << std::endl;
+            std::cout << error.file() << " (" << error.line() << ")" << std::endl;
+            std::cout << std::endl;
+          }
+        }
       }
     }
   };
