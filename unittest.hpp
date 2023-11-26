@@ -62,6 +62,7 @@ namespace unittest {
     bool _is_timed = false;
     size_t _repeat = 1;
   public:
+    Test(const std::string& name): _name(name) {}
     Test(const char* name): _name(name) {}
     
     Test time(bool is_timed = true) && {
