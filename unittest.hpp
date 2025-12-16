@@ -38,19 +38,24 @@ namespace unittest {
     const char* _expression;
     size_t _line;
     const char* _file;
+    std::string _message;
   public:
-    AssertionError(const char* expression, size_t line, const char* file):
-      _expression(expression), _line(line), _file(file) {}
+    AssertionError(const char* expression,
+                   size_t line,
+                   const char* file,
+                   const std::string& message = ""):
+      _expression(expression), _line(line), _file(file), _message(message) {}
     
     const char* expression() const { return _expression; }
     size_t line() const { return _line; }
     const char* file() const { return _file; }
+    const std::string& message() const { return _message; }
   };
   
-  inline void assert(bool condition,
-                     const char* expression,
-                     size_t line,
-                     const char* file) {
+  inline void _assert(bool condition,
+                      const char* expression,
+                      size_t line,
+                      const char* file) {
     if (!condition) {
       throw AssertionError(expression, line, file);
     }
@@ -65,6 +70,10 @@ namespace unittest {
     Test(const std::string& name): _name(name) {}
     Test(const char* name): _name(name) {}
     
+    const std::string& name() const { return _name; }
+    bool is_timed() const { return _is_timed; }
+    size_t repeat() const { return _repeat; }
+
     Test time(bool is_timed = true) && {
       _is_timed = is_timed;
       return std::move(*this);
@@ -153,7 +162,7 @@ namespace unittest {
     }
     
   public:
-    void run(const std::function<void()>& body) && {
+    void run(const std::function<void()>& body) {
       size_t success_count = 0;
       std::vector<Report> reports;
       reports.reserve(_repeat);
@@ -195,6 +204,9 @@ namespace unittest {
             const AssertionError& error = report.error.value();
             std::cout << std::endl;
             std::cout << "Assertion failed: " << error.expression() << std::endl;
+            if (!error.message().empty()) {
+              std::cout << error.message() << std::endl;
+            }
             std::cout << error.file() << " (" << error.line() << ")" << std::endl;
             std::cout << std::endl;
           }
@@ -204,6 +216,6 @@ namespace unittest {
   };
 };
 
-#define unittest_assert(expr) unittest::assert(expr, #expr, __LINE__, __FILE__);
+#define unittest_assert(expr) unittest::_assert(expr, #expr, __LINE__, __FILE__);
 
 #endif
