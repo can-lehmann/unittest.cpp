@@ -29,25 +29,27 @@ using Test = unittest::Test;
 #define assert(expr) unittest_assert(expr)
 
 int main() {
-  Test("Addition").run([](){
+  unittest::Suite suite;
+
+  Test("Addition").run(suite, [](){
     assert(1 + 2 == 3);
   });
   
-  Test("Failed Test").run([](){
+  Test("Failed Test").run(suite, [](){
     assert(0 == 1);
   });
   
-  Test("Timed Test").time().run([](){
+  Test("Timed Test").time().run(suite, [](){
     std::this_thread::sleep_for(std::chrono::milliseconds(123));
   });
   
-  Test("Repeated Test").repeat(10).run([](){
+  Test("Repeated Test").repeat(10).run(suite, [](){
     assert(true);
   });
   
-  Test("Repeated Timed Test").repeat(10).time().run([](){
+  Test("Repeated Timed Test").repeat(10).time().run(suite, [](){
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   });
   
-  return 0;
+  return suite.finish();
 }
