@@ -31,23 +31,23 @@ using Test = unittest::Test;
 int main() {
   unittest::Suite suite;
 
-  Test("Addition").run(suite, [](){
+  suite.test("Addition").run([](){
     assert(1 + 2 == 3);
   });
   
-  Test("Failed Test").run(suite, [](){
+  suite.test("Failed Test").run([](){
     assert(0 == 1);
   });
   
-  Test("Timed Test").time().run(suite, [](){
+  suite.test("Timed Test").time().run([](){
     std::this_thread::sleep_for(std::chrono::milliseconds(123));
   });
   
-  Test("Repeated Test").repeat(10).run(suite, [](){
+  suite.test("Repeated Test").repeat(10).run([](){
     assert(true);
   });
   
-  Test("Repeated Timed Test").repeat(10).time().run(suite, [](){
+  suite.test("Repeated Timed Test").repeat(10).time().run([](){
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   });
   

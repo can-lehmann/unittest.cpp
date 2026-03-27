@@ -60,15 +60,19 @@ namespace unittest {
       throw AssertionError(expression, line, file);
     }
   }
+
+  class Suite;
+  class Test;
+
   class Suite {
-    private:
-    int _num_errors = 0;
-    int _num_successes = 0;
+  private:
+    size_t _num_errors = 0;
+    size_t _num_successes = 0;
 
-    public:
-    Suite() {};
+  public:
+    Suite() {}
 
-    void report_outcome(std::string& name, bool has_errors) {
+    void report_outcome(const std::string& name, bool has_errors) {
       if (has_errors) {
         _num_errors++;
       } else {
@@ -86,16 +90,23 @@ namespace unittest {
       }
       return 0;
     }
+
+    inline Test test(const std::string& name);
+    inline Test test(const char* name);
   };
 
   class Test {
   private:
     std::string _name;
+    Suite* _suite = nullptr;
     bool _is_timed = false;
     size_t _repeat = 1;
   public:
     Test(const std::string& name): _name(name) {}
     Test(const char* name): _name(name) {}
+
+    Test(const std::string& name, Suite& suite): _name(name), _suite(&suite) {}
+    Test(const char* name, Suite& suite): _name(name), _suite(&suite) {}
     
     const std::string& name() const { return _name; }
     bool is_timed() const { return _is_timed; }
@@ -189,11 +200,6 @@ namespace unittest {
     }
     
   public:
-    bool run(Suite& suite, const std::function<void()>& body) {
-      bool has_errors = run(body);
-      suite.report_outcome(_name, has_errors);
-      return has_errors;
-    }
     bool run(const std::function<void()>& body) {
       size_t success_count = 0;
       std::vector<Report> reports;
@@ -244,9 +250,22 @@ namespace unittest {
           }
         }
       }
+
+      if (_suite) {
+        _suite->report_outcome(_name, has_errors);
+      }
+
       return has_errors;
     }
   };
+
+  inline Test Suite::test(const std::string& name) {
+    return Test(name, *this);
+  }
+
+  inline Test Suite::test(const char* name) {
+    return Test(name, *this);
+  }
 };
 
 #define unittest_assert(expr) unittest::_assert(expr, #expr, __LINE__, __FILE__);
