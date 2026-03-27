@@ -60,7 +60,34 @@ namespace unittest {
       throw AssertionError(expression, line, file);
     }
   }
-  
+  class Suite {
+    private:
+    int _num_errors = 0;
+    int _num_successes = 0;
+
+    public:
+    Suite() {};
+
+    void report_outcome(std::string& name, bool has_errors) {
+      if (has_errors) {
+        _num_errors++;
+      } else {
+        _num_successes++;
+      }
+    }
+
+    int finish() {
+      if (_num_errors) {
+        std::cout << "\e[1;31m" << _num_errors << " failed,\e[0m ";
+      }
+      std::cout << "\e[32m" << _num_successes << " passed \e[0m\n";
+      if (_num_errors) {
+        return -1;
+      }
+      return 0;
+    }
+  };
+
   class Test {
   private:
     std::string _name;
@@ -162,7 +189,12 @@ namespace unittest {
     }
     
   public:
-    void run(const std::function<void()>& body) {
+    bool run(Suite& suite, const std::function<void()>& body) {
+      bool has_errors = run(body);
+      suite.report_outcome(_name, has_errors);
+      return has_errors;
+    }
+    bool run(const std::function<void()>& body) {
       size_t success_count = 0;
       std::vector<Report> reports;
       reports.reserve(_repeat);
@@ -212,6 +244,7 @@ namespace unittest {
           }
         }
       }
+      return has_errors;
     }
   };
 };
