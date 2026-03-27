@@ -95,31 +95,37 @@ namespace unittest {
     inline Test test(const char* name);
   };
 
-  class Test {
+  template <class Self>
+  class BaseTest {
   private:
     std::string _name;
     Suite* _suite = nullptr;
     bool _is_timed = false;
     size_t _repeat = 1;
   public:
-    Test(const std::string& name): _name(name) {}
-    Test(const char* name): _name(name) {}
+    BaseTest(const std::string& name): _name(name) {}
+    BaseTest(const char* name): _name(name) {}
 
-    Test(const std::string& name, Suite& suite): _name(name), _suite(&suite) {}
-    Test(const char* name, Suite& suite): _name(name), _suite(&suite) {}
+    BaseTest(const std::string& name, Suite& suite): _name(name), _suite(&suite) {}
+    BaseTest(const char* name, Suite& suite): _name(name), _suite(&suite) {}
     
     const std::string& name() const { return _name; }
     bool is_timed() const { return _is_timed; }
     size_t repeat() const { return _repeat; }
 
-    Test time(bool is_timed = true) && {
+    Self time(bool is_timed = true) && {
       _is_timed = is_timed;
-      return std::move(*this);
+      return std::move(*((Self*) this));
     }
     
-    Test repeat(size_t repeat) && {
+    Self repeat(size_t repeat) && {
       _repeat = repeat;
-      return std::move(*this);
+      return std::move(*((Self*) this));
+    }
+
+    Self suite(Suite& suite) && {
+      _suite = &suite;
+      return std::move(*((Self*) this));
     }
   
   private:
@@ -257,6 +263,11 @@ namespace unittest {
 
       return has_errors;
     }
+  };
+
+  class Test: public BaseTest<Test> {
+  public:
+    using BaseTest::BaseTest;
   };
 
   inline Test Suite::test(const std::string& name) {
