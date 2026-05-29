@@ -73,6 +73,7 @@ namespace unittest {
     std::string _filter;
     bool _exit_on_failure = false;
     bool _aborted = false;
+    bool _capture = true;
 
   public:
     Suite() {}
@@ -85,10 +86,13 @@ namespace unittest {
                     << "Options:\n"
                     << "  -k <keyword>  only run tests whose name contains <keyword>\n"
                     << "  -x            stop after first failure\n"
+                    << "  -s            disable output capturing\n"
                     << "  -h, --help    show this help message\n";
           std::exit(0);
         } else if (arg == "-x") {
           _exit_on_failure = true;
+        } else if (arg == "-s") {
+          _capture = false;
         } else if (arg == "-k") {
           if (i + 1 >= argc) {
             std::cerr << "unittest: -k requires an argument\n";
@@ -105,6 +109,7 @@ namespace unittest {
 
     const std::string& filter() const { return _filter; }
     bool should_abort() const { return _aborted; }
+    bool capture() const { return _capture; }
 
     void report_outcome(const std::string& name, bool has_errors) {
       if (has_errors) {
@@ -179,11 +184,12 @@ namespace unittest {
     struct Report {
       std::optional<AssertionError> error;
       Duration duration;
-      
+      std::string captured;
+
       Report() {}
       Report(Duration _duration): duration(_duration) {}
       Report(const AssertionError& _error): error(_error) {}
-      
+
       bool is_error() const { return error.has_value(); }
       bool is_success() const { return !is_error(); }
     };
@@ -267,7 +273,15 @@ namespace unittest {
       size_t success_count = 0;
       std::vector<Report> reports;
       reports.reserve(_repeat);
+      bool do_capture = _suite && _suite->capture();
       for (size_t iter = 0; iter < _repeat; iter++) {
+        std::ostringstream captured;
+        std::streambuf* old_cout = nullptr;
+        std::streambuf* old_cerr = nullptr;
+        if (do_capture) {
+          old_cout = std::cout.rdbuf(captured.rdbuf());
+          old_cerr = std::cerr.rdbuf(captured.rdbuf());
+        }
         try {
           if (_is_timed) {
             std::chrono::high_resolution_clock clock;
@@ -282,6 +296,11 @@ namespace unittest {
           success_count++;
         } catch (const AssertionError& err) {
           reports.emplace_back(err);
+        }
+        if (do_capture) {
+          std::cout.rdbuf(old_cout);
+          std::cerr.rdbuf(old_cerr);
+          reports.back().captured = captured.str();
         }
       }
       
@@ -309,6 +328,9 @@ namespace unittest {
               std::cout << error.message() << std::endl;
             }
             std::cout << error.file() << " (" << error.line() << ")" << std::endl;
+            if (!report.captured.empty()) {
+              std::cout << "Captured output:\n" << report.captured;
+            }
             std::cout << std::endl;
           }
         }

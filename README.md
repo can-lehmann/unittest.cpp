@@ -39,6 +39,7 @@ int main(int argc, char** argv) {
 
 - `-k <keyword>` (only run tests whose name contains `<keyword>`)
 - `-x` (stop after the first failure)
+- `-s` (disable output capturing; by default, `stdout`/`stderr` from passing tests is suppressed and only shown for failing ones)
 - `-h`, `--help` (show usage)
 
 ## License
