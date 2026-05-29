@@ -31,6 +31,7 @@
 #include <optional>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 
 namespace unittest {
   class AssertionError {
@@ -68,9 +69,36 @@ namespace unittest {
   private:
     size_t _num_errors = 0;
     size_t _num_successes = 0;
+    size_t _num_skipped = 0;
+    std::string _filter;
 
   public:
     Suite() {}
+
+    Suite(int argc, char** argv) {
+      for (int i = 1; i < argc; i++) {
+        std::string arg(argv[i]);
+        if (arg == "--help" || arg == "-h") {
+          std::cout << "Usage: " << argv[0] << " [options]\n"
+                    << "Options:\n"
+                    << "  -k <keyword>  only run tests whose name contains <keyword>\n"
+                    << "  -h, --help    show this help message\n";
+          std::exit(0);
+        } else if (arg == "-k") {
+          if (i + 1 >= argc) {
+            std::cerr << "unittest: -k requires an argument\n";
+            std::exit(1);
+          }
+          _filter = argv[++i];
+        } else {
+          std::cerr << "unittest: unrecognized argument: " << arg << "\n";
+          std::cerr << "Run with --help for usage.\n";
+          std::exit(1);
+        }
+      }
+    }
+
+    const std::string& filter() const { return _filter; }
 
     void report_outcome(const std::string& name, bool has_errors) {
       if (has_errors) {
@@ -80,11 +108,19 @@ namespace unittest {
       }
     }
 
+    void report_skipped() {
+      _num_skipped++;
+    }
+
     int finish() {
       if (_num_errors) {
         std::cout << "\e[1;31m" << _num_errors << " failed,\e[0m ";
       }
-      std::cout << "\e[32m" << _num_successes << " passed \e[0m\n";
+      std::cout << "\e[32m" << _num_successes << " passed\e[0m";
+      if (_num_skipped) {
+        std::cout << ", \e[33m" << _num_skipped << " skipped\e[0m";
+      }
+      std::cout << "\n";
       if (_num_errors) {
         return -1;
       }
@@ -207,6 +243,14 @@ namespace unittest {
     
   public:
     bool run(const std::function<void()>& body) {
+      if (_suite) {
+        const std::string& filter = _suite->filter();
+        if (!filter.empty() && _name.find(filter) == std::string::npos) {
+          _suite->report_skipped();
+          return false;
+        }
+      }
+
       size_t success_count = 0;
       std::vector<Report> reports;
       reports.reserve(_repeat);
