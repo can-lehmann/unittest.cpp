@@ -27,6 +27,20 @@ suite.test("Addition").run([](){
 return suite.finish();
 ```
 
+Pass `argc` and `argv` to enable command-line options:
+
+```cpp
+int main(int argc, char** argv) {
+  unittest::Suite suite(argc, argv);
+  // ...
+  return suite.finish();
+}
+```
+
+- `-k <keyword>` (only run tests whose name contains `<keyword>`)
+- `-x` (stop after the first failure)
+- `-h`, `--help` (show usage)
+
 ## License
 
 This project is licensed under the MIT license.
