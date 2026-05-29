@@ -28,28 +28,32 @@
 using Test = unittest::Test;
 #define assert(expr) unittest_assert(expr)
 
-int main() {
-  unittest::Suite suite;
+int main(int argc, char** argv) {
+  unittest::Suite suite(argc, argv);
 
   suite.test("Addition").run([](){
     assert(1 + 2 == 3);
   });
-  
+
+  suite.test("Subtraction").run([](){
+    assert(3 - 1 == 2);
+  });
+
   suite.test("Failed Test").run([](){
     assert(0 == 1);
   });
-  
+
   suite.test("Timed Test").time().run([](){
     std::this_thread::sleep_for(std::chrono::milliseconds(123));
   });
-  
+
   suite.test("Repeated Test").repeat(10).run([](){
     assert(true);
   });
-  
+
   suite.test("Repeated Timed Test").repeat(10).time().run([](){
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   });
-  
+
   return suite.finish();
 }
