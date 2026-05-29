@@ -71,6 +71,8 @@ namespace unittest {
     size_t _num_successes = 0;
     size_t _num_skipped = 0;
     std::string _filter;
+    bool _exit_on_failure = false;
+    bool _aborted = false;
 
   public:
     Suite() {}
@@ -82,8 +84,11 @@ namespace unittest {
           std::cout << "Usage: " << argv[0] << " [options]\n"
                     << "Options:\n"
                     << "  -k <keyword>  only run tests whose name contains <keyword>\n"
+                    << "  -x            stop after first failure\n"
                     << "  -h, --help    show this help message\n";
           std::exit(0);
+        } else if (arg == "-x") {
+          _exit_on_failure = true;
         } else if (arg == "-k") {
           if (i + 1 >= argc) {
             std::cerr << "unittest: -k requires an argument\n";
@@ -99,10 +104,14 @@ namespace unittest {
     }
 
     const std::string& filter() const { return _filter; }
+    bool should_abort() const { return _aborted; }
 
     void report_outcome(const std::string& name, bool has_errors) {
       if (has_errors) {
         _num_errors++;
+        if (_exit_on_failure) {
+          _aborted = true;
+        }
       } else {
         _num_successes++;
       }
@@ -244,6 +253,10 @@ namespace unittest {
   public:
     bool run(const std::function<void()>& body) {
       if (_suite) {
+        if (_suite->should_abort()) {
+          _suite->report_skipped();
+          return false;
+        }
         const std::string& filter = _suite->filter();
         if (!filter.empty() && _name.find(filter) == std::string::npos) {
           _suite->report_skipped();
