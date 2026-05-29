@@ -36,10 +36,12 @@ int main(int argc, char** argv) {
   });
 
   suite.test("Subtraction").run([](){
+    std::cout << "diagnostic from a passing test\n";
     assert(3 - 1 == 2);
   });
 
   suite.test("Failed Test").run([](){
+    std::cout << "diagnostic from inside the test\n";
     assert(0 == 1);
   });
 
